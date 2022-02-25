@@ -1,0 +1,53 @@
+pipeline {
+    agent {label 'sic_slave'}
+    environment {
+       API_CREDENTIALS = credentials('github_org_credentials')
+    }
+    stages {
+        stage('GetPrNumber') {
+            steps {
+                sh(
+                     label: "Getting information...",
+                     script: """
+                     echo "Github URL ${env.GIT_URL}"
+                     echo "SourceBranch: ${env.CHANGE_BRANCH}"
+                     echo "TargetBranch: ${env.CHANGE_TARGET}"
+                     echo "Pull Request ID: ${env.CHANGE_ID}"
+                     """
+                    )
+            }
+        }
+        
+        stage('GetPRScanScript') {
+            steps {
+                sh(
+                label: "Getting PR scaner ...",
+                script: """
+                cd ${env.WORKSPACE}
+                aws s3 cp s3://sic-tool-artifactory/deltafinder-script/github_pr_scan.sh .
+                dos2unix github_pr_scan.sh
+                chmod +x github_pr_scan.sh
+                """
+                )
+            }
+        }
+        
+        stage('PRScan'){
+            steps {
+               sh(
+                label: "Getting PR scaner ...",
+                script: """
+                 cd ${env.WORKSPACE}
+                 bash github_pr_scan.sh $env.GIT_URL $env.CHANGE_BRANCH $env.CHANGE_TARGET $env.CHANGE_ID $API_CREDENTIALS
+                """
+                )
+            }
+        }
+         
+    }
+    post { 
+        always { 
+            cleanWs()
+        }
+    } 
+}
